@@ -38,7 +38,7 @@ var usage = `Usage: monitor [option...]
 option:
     -d    要监控的目录,默认为当前目录
     -s    默认最小值为200M，超过200M，会执行删除操作
-    -t    间隔多久时间遍历目录大小，默认值为1s
+    -t    间隔多久时间遍历目录大小，默认值为1s,不能小于1s
 `
 
 func main() {
@@ -46,6 +46,11 @@ func main() {
 		fmt.Fprint(os.Stderr, usage)
 	}
 	flag.Parse()
+
+	if *t < 1*time.Second {
+		flag.Usage()
+		os.Exit(1)
+	}
 
 	//指定捕捉ctrl+c信号
 	signal.Notify(stop, os.Interrupt)
@@ -107,7 +112,6 @@ func GetDirSize(dir string) int64 {
 	)
 
 	filesizes := make(chan int64)
-
 	w.Add(1)
 	go WalkDir(dir, filesizes, &w)
 
@@ -129,6 +133,9 @@ loop:
 				break loop
 			}
 			sum += size
+		//遍历获取超时，当遍历时间大于设置的监视时间，就自动返回
+		case <-time.After(*t - time.Microsecond*500):
+			break loop
 		}
 	}
 
