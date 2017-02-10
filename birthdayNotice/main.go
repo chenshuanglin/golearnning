@@ -1,12 +1,10 @@
 package main
 
-import (
-	"birthdayNotice/lib"
-)
+import "birthdayNotice/notice"
 
 func main() {
-	users := lib.GetUsers()
+	users := notice.GetUsers()
 	for _, user := range users {
-		lib.Notice(&user)
+		notice.Notice(&user)
 	}
 }

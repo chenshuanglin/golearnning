@@ -2,10 +2,11 @@
  * author:chenshuanglin
  * descript: 主要是用来判断是否按计划快到生日了
  */
-package lib
+package notice
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -32,25 +33,30 @@ func init() {
 }
 
 func Notice(user *User) {
-	if strings.EqualFold(user.Type, "农历") {
-		ok, err := isNoticeLunar(user.Date, time.Duration(user.Before))
+	days := [4]int{0, 1, 2, user.Before}
+	flag := false
+	for _, day := range days {
+		ok, err := SendNotice(user, time.Duration(day))
 		if err != nil {
-			log.Printf("判断是否到农历生日失败,原因是%v\n", err)
-			return
+			log.Fatalf("获取用户%s的信息失败，失败原因是%v\n", user.Name, err)
 		}
-		if !ok {
-			log.Printf("用户:%s 农历生日还没到\n", user.Name)
-			return
+		if ok {
+			log.Printf("你好，%s的%s生日要到了，提前%d天提醒,准备发送邮件\n", user.Name, user.Type, day)
+			message := fmt.Sprintf("你好，%s的%s生日要到了，提前%d天提醒\n", user.Name, user.Type, day)
+			SendMessage(user, message)
+			flag = true
 		}
-		log.Printf("用户:%s 农历生日到了，农历日期为%s\n", user.Name, user.Date)
+	}
+	if !flag {
+		log.Printf("巡检用户%s，生日还没到\n", user.Name)
+	}
+}
 
+func SendNotice(user *User, day time.Duration) (bool, error) {
+	if strings.EqualFold(user.Type, "农历") {
+		return isNoticeLunar(user.Date, day)
 	} else {
-		ok := isNoticeNew(user.Date, time.Duration(user.Before))
-		if !ok {
-			log.Printf("用户:%s 新历生日还没到\n", user.Name)
-			return
-		}
-		log.Printf("用户:%s 新历生日到了，日期为%s\n", user.Name, user.Date)
+		return isNoticeNew(user.Date, day), nil
 	}
 }
 

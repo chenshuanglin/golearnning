@@ -1,10 +1,11 @@
-package lib
+package notice
 
 import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 )
 
 type config struct {
@@ -17,10 +18,9 @@ type User struct {
 	Name   string
 	Date   string `json:"month-day"`
 	Type   string
-	Before int32
+	Email  string
+	Before int
 }
-
-const configPath = "../config.json"
 
 var c config
 
@@ -31,7 +31,7 @@ func init() {
 			log.Fatalln(err)
 		}
 	}()
-
+	configPath := os.Getenv("GOPATH") + "/src/birthdayNotice/config.json"
 	bytes, err := ioutil.ReadFile(configPath)
 	if err != nil {
 		panic(fmt.Sprintf("读取配置文件失败，原因是:%v", err))
