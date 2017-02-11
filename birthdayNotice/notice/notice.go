@@ -43,7 +43,7 @@ func Notice(user *User) {
 		if ok {
 			log.Printf("你好，%s的%s生日要到了，提前%d天提醒,准备发送邮件\n", user.Name, user.Type, day)
 			message := fmt.Sprintf("你好，%s的%s生日要到了，提前%d天提醒\n", user.Name, user.Type, day)
-			SendMessage(user, message)
+			sendMessage(user, message)
 			flag = true
 		}
 	}
