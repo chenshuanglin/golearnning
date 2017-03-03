@@ -1,0 +1,3 @@
+package: syncFtp
+import:
+- package: github.com/jlaffaye/ftp

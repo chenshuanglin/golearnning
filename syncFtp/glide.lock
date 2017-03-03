@@ -1,0 +1,6 @@
+hash: f4c90605b7e14e06ae41ac252fc264bf7b539f1f09f3aadca4b541f7c207beb6
+updated: 2017-02-15T21:59:58.4590705+08:00
+imports:
+- name: github.com/jlaffaye/ftp
+  version: de604c9776d421c5f4844956693a408566ef854a
+testImports: []
