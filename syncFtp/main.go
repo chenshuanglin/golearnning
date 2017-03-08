@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/jlaffaye/ftp"
+	"log"
+	"sync"
 )
 
 var (
@@ -21,25 +23,72 @@ var (
 	rp   = flag.String("remote", "远程所要同步的目录", "Use -remote <filepath>")
 )
 
-var conn *ftp.ServerConn
+type connPool struct {
+	Dial func() (*ftp.ServerConn, error)
+    maxActive int
+	conn chan *ftp.ServerConn
+}
+
+func (p *connPool) initPool() {
+	p.conn = make(chan *ftp.ServerConn, p.maxActive)
+	for i := 0 ; i < p.maxActive; i++ {
+		conn , err := p.Dial()
+		if err != nil {
+			log.Println("获取链接失败！")
+			continue
+		}
+		p.conn <- conn
+	}
+}
+
+func (p *connPool) Get() *ftp.ServerConn{
+
+	if p.conn == nil {
+		p.initPool()
+	}
+	return <- p.conn
+}
+
+func (p *connPool) release(conn *ftp.ServerConn) {
+	p.conn <- conn
+}
+
+var p *connPool
+var wg sync.WaitGroup
 
 func main() {
 	flag.Parse()
-	var err error
-	conn, err = ftp.Connect(*ip)
-	if err != nil {
-		panic(err)
-	}
-	err = conn.Login(*user, *pw)
-	if err != nil {
-		panic(err)
-	}
+	
+	p = newConnPool()
+	wg.Add(1)
+	go func() {
+		listDir(*rp, *lp)
+	}()
+	wg.Wait()
+	
+}
 
-	listDir(*rp, *lp)
+func newConnPool() *connPool {
+	return &connPool{
+		maxActive: 20,
+		Dial: func() (*ftp.ServerConn, error) {
+			conn, err := ftp.Connect(*ip)
+			if err != nil {
+				return nil ,err
+			}
+			err = conn.Login(*user, *pw)
+			if err != nil {
+				return nil ,err
+			}
+			return conn, nil
+		},
+	}
 }
 
 //listDir :遍历目录，如果不是隐藏文件，且不ignoretxt文件中，则下载，如果是目录则创建目录，并迭代遍历
 func listDir(_rpath, lpath string) {
+	conn := p.Get()
+	
 	//创建或打开ignoretxt文件，获取里面的已有文件列表
 	ig, err := NewIgnore(lpath)
 	if err != nil {
@@ -74,18 +123,22 @@ func listDir(_rpath, lpath string) {
 			}
 			tmpDir := filepath.Join(lpath, et.Name)
 			rDir := _rpath + "/" + et.Name
-			listDir(rDir, tmpDir)
+			wg.Add(1)
+			go listDir(rDir, tmpDir)
 		} else { //是文件执行下载操作
 			if !isInclude(et.Name, localList) {
 				sp := filepath.Join(lpath, et.Name)
 				rf := _rpath + "/" + et.Name
-				download(rf, sp)
+				wg.Add(1)
+				go download(rf, sp)
 				sList = append(sList, et.Name)
 			}
 		}
 	}
 	ig.write(sList)
 	ig.iClose()
+	wg.Done()
+	p.release(conn)
 }
 
 //isHideFile：是否是隐藏文件
@@ -98,6 +151,8 @@ func isHideFile(s string) bool {
 
 //下载文件
 func download(_path, savePath string) {
+	defer wg.Done()
+	conn := p.Get()
 	fmt.Println("save: ", savePath)
 	rc, err := conn.Retr(_path)
 	if err != nil {
@@ -113,6 +168,7 @@ func download(_path, savePath string) {
 	io.Copy(w, rc)
 	w.Close()
 	rc.Close()
+	p.release(conn)
 }
 
 //判断字符串是否包含在字符串列表中
