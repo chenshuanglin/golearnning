@@ -32,11 +32,12 @@ func init() {
 	}
 }
 
+//Notice 遍历天数，判断是否快到生日，进行相应的提醒
 func Notice(user *User) {
 	days := [4]int{0, 1, 2, user.Before}
 	flag := false
 	for _, day := range days {
-		ok, err := SendNotice(user, time.Duration(day))
+		ok, err := sendNotice(user, time.Duration(day))
 		if err != nil {
 			log.Fatalf("获取用户%s的信息失败，失败原因是%v\n", user.Name, err)
 		}
@@ -52,12 +53,11 @@ func Notice(user *User) {
 	}
 }
 
-func SendNotice(user *User, day time.Duration) (bool, error) {
+func sendNotice(user *User, day time.Duration) (bool, error) {
 	if strings.EqualFold(user.Type, "农历") {
 		return isNoticeLunar(user.Date, day)
-	} else {
-		return isNoticeNew(user.Date, day), nil
 	}
+	return isNoticeNew(user.Date, day), nil
 }
 
 /*
@@ -74,9 +74,8 @@ func isNoticeLunar(date string, day time.Duration) (bool, error) {
 	lunar := getLunarDay(date)
 	if strings.EqualFold(lunar, c.Result.Data.Lunar) {
 		return true, nil
-	} else {
-		return false, nil
 	}
+	return false, nil
 }
 
 /*
